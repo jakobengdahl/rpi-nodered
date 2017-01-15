@@ -7,6 +7,9 @@ RUN apt-get update  && \
 
 ENV PYTHON /usr/bin/python2
 
+ENV ARCH=arm
+ENV CROSS_COMPILE=/usr/bin/
+
 # install nodejs for rpi
 RUN apt-get install -y wget && \
     wget http://node-arm.herokuapp.com/node_latest_armhf.deb && \
@@ -26,6 +29,20 @@ RUN apt-get install -y build-essential && \
     npm install -g --unsafe-perm  node-red && \
     apt-get autoremove -y build-essential
 
+# install telldus 
+RUN apt-get install -y wget && \
+    echo "deb http://download.telldus.com/debian/ stable main" >> /etc/apt/sources.list.d/telldus.list && \
+    wget -qO - http://download.telldus.se/debian/telldus-public.key | apt-key add - && \
+    apt-get update && apt-get install -y supervisor telldus-core libtelldus-core2 libtelldus-core-dev && \
+    apt-get update && apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+
+RUN apt-get install -y wget && \
+     wget http://downloads.sourceforge.net/project/raspberry-gpio-python/raspbian-wheezy/python-rpi.gpio_0.5.11-1_armhf.deb && \
+     dpkg -i python-rpi.gpio_0.5.11-1_armhf.deb && \
+     rm python-rpi.gpio_0.5.11-1_armhf.deb && \
+     apt-get autoremove -y wget
+
 # install nodered nodes
 RUN touch /usr/share/doc/python-rpi.gpio
 COPY ./source /usr/local/lib/node_modules/node-red/nodes/core/hardware
@@ -39,9 +56,15 @@ env PATH ~/bin:$PATH
 WORKDIR /root/.node-red
 RUN npm install node-red-node-redis && \
     npm install node-red-contrib-googlechart && \
-    npm install node-red-node-web-nodes 
+    npm install node-red-node-web-nodes && \
+    npm install telldus && \ 
+    npm install node-gyp && \ 
+    npm install node-red-contrib-tellstick 
+
+ADD supervisord.conf /etc/supervisor/conf.d/supervisord.conf 
 
 # run application
 EXPOSE 1880
 #CMD ["/bin/bash"]
-ENTRYPOINT ["node-red-pi","-v","--max-old-space-size=128"]
+#ENTRYPOINT ["node-red-pi","-v","--max-old-space-size=128"]
+ENTRYPOINT ["/usr/bin/supervisord"]
